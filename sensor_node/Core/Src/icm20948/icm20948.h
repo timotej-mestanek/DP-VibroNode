@@ -144,6 +144,12 @@ public:
 	void Start(void);
 
 	uint8_t IsPresent(void);
+
+	void EnableFifo(bool accel, bool gyro);
+	void ResetFifo(void);
+	uint16_t GetFifoCount(void);
+	uint8_t* ReadFifo(uint16_t length);
+
 };
 
 

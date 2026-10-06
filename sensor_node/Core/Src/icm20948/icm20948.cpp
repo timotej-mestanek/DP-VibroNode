@@ -222,6 +222,33 @@ void Icm20948::SetInterruptSource(interrupt_source_enum int_source)
 
 }
 
+void Icm20948::EnableFifo(bool accel, bool gyro){
+	uint8_t fifo_en_val = 0;
+
+
+	    if (accel) fifo_en_val |= (1 << 4);
+	    if (gyro)  fifo_en_val |= 0x0E;
+
+	    _spi_manager->write_single_reg(_activeDevice, ub_0, B0_FIFO_EN_2, fifo_en_val);
+
+	    uint8_t user_ctrl = _spi_manager->read_single_reg(_activeDevice, ub_0, B0_USER_CTRL);
+	    _spi_manager->write_single_reg(_activeDevice, ub_0, B0_USER_CTRL, user_ctrl | 0x40);
+}
+
+void Icm20948::ResetFifo(void) {
+    _spi_manager->write_single_reg(_activeDevice, ub_0, B0_FIFO_RST, 0x1F);
+    _spi_manager->write_single_reg(_activeDevice, ub_0, B0_FIFO_RST, 0x00);
+}
+
+uint16_t Icm20948::GetFifoCount(void) {
+    uint8_t *count_buf = _spi_manager->read_multiple_reg(_activeDevice, ub_0, B0_FIFO_COUNTH, 2);
+    return (uint16_t)((count_buf[0] << 8) | count_buf[1]);
+}
+
+
+uint8_t* Icm20948::ReadFifo(uint16_t length) {
+    return _spi_manager->read_multiple_reg(_activeDevice, ub_0, B0_FIFO_R_W, length);
+}
 
 void Icm20948::Read(void)
 {
