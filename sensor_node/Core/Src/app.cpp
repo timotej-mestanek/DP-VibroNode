@@ -19,7 +19,8 @@ extern "C" void cpp_main(void) {
     McuPin_typeDef pinINT = {GPIOB, GPIO_PIN_6};
 
     config1.pinCS = &pinCS;
-    config1.int_source = interrupt_disable;
+    config1.pinINT = &pinINT;
+    config1.int_source = interrupt_RAW_DATA_0_RDY_EN;
     config1.gyro.low_pass_filter = GYRO_lpf_196_6Hz;
     config1.gyro.sample_rate = GYRO_samplerate_281_3Hz;
     config1.accel.low_pass_filter = ACCEL_lpf_246Hz;
@@ -34,27 +35,39 @@ extern "C" void cpp_main(void) {
          sensor.Wakeup();
          sensor.Start();
          HAL_Delay(100);
-         const char ok_msg[] = "Senzor pripojen, zacinam merit...\r\n";
-         HAL_UART_Transmit(&huart1, (uint8_t*)ok_msg, strlen(ok_msg), 100);
+
+         sensor.ResetFifo();
+         sensor.EnableFifo(true, true);
+
+         const char ok_msg[] = "Senzor rdy, FIFO sbe...\r\n";
+                  HAL_UART_Transmit(&huart1, (uint8_t*)ok_msg, strlen(ok_msg), 100);
      } else {
-         const char err[] = "Senzor nenalezen!\r\n";
+         const char err[] = "Senzor NF \r\n";
          HAL_UART_Transmit(&huart1, (uint8_t*)err, strlen(err), 100);
          while(1);
      }
 
     while(1){
-    	sensor.Read();
-    	        axisesI *gyro  = sensor.gyroSensor->GetData();
-    	        axisesI *accel = sensor.accSensor->GetData();
-    	        axisesI *mag   = sensor.magSensor->GetData();
+            uint16_t fifo_count = sensor.GetFifoCount();
 
-    	        int len = sprintf(buffer, "mag: [%d, %d, %d] | GYRO: [%d, %d, %d] | MAG: [%d, %d, %d]\t \n",
-    	                          accel->x, accel->y, accel->z,
-    	                          gyro->x, gyro->y, gyro->z,
-    	                          mag->x, mag->y, mag->z);
-    	        HAL_UART_Transmit(&huart1, (uint8_t*)buffer, len, 100);
-    	        HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_2);
-    }
+            while (fifo_count >= 12) {
 
+                uint8_t* fifo_data = sensor.ReadFifo(12);
+                int16_t ax = (fifo_data[0] << 8) | fifo_data[1];
+                int16_t ay = (fifo_data[2] << 8) | fifo_data[3];
+                int16_t az = (fifo_data[4] << 8) | fifo_data[5];
+
+                int16_t gx = (fifo_data[6] << 8) | fifo_data[7];
+                int16_t gy = (fifo_data[8] << 8) | fifo_data[9];
+                int16_t gz = (fifo_data[10] << 8) | fifo_data[11];
+
+                int len = sprintf(buffer, "ACC: [%d, %d, %d] | GYRO: [%d, %d, %d]\r\n", ax, ay, az, gx, gy, gz);
+                HAL_UART_Transmit(&huart1, (uint8_t*)buffer, len, 10);
+
+                fifo_count -= 12;
+            }
+
+            HAL_Delay(50);
+        }
 
 }
