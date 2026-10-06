@@ -8,6 +8,14 @@
 extern UART_HandleTypeDef huart1;
 extern SPI_HandleTypeDef hspi1;
 
+volatile uint8_t sensor_data = 0;
+
+extern "C" void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
+    if (GPIO_Pin == GPIO_PIN_6) {
+        sensor_data = 1;
+
+    }
+}
 
 extern "C" void cpp_main(void) {
 
@@ -38,6 +46,9 @@ extern "C" void cpp_main(void) {
 
          sensor.ResetFifo();
          sensor.EnableFifo(true, true);
+         uint8_t int_cfg =INT_PIN_CFG_2CLEAR;
+         manager.write_single_reg(0, ub_0, B0_INT_PIN_CFG, int_cfg);
+         manager.write_single_reg(0, ub_0, B0_INT_ENABLE_1, 0x01);
 
          const char ok_msg[] = "Senzor rdy, FIFO sbe...\r\n";
                   HAL_UART_Transmit(&huart1, (uint8_t*)ok_msg, strlen(ok_msg), 100);
@@ -47,27 +58,44 @@ extern "C" void cpp_main(void) {
          while(1);
      }
 
+
     while(1){
-            uint16_t fifo_count = sensor.GetFifoCount();
+            if (sensor_data == 1) {
+                sensor_data = 0;
 
-            while (fifo_count >= 12) {
 
-                uint8_t* fifo_data = sensor.ReadFifo(12);
-                int16_t ax = (fifo_data[0] << 8) | fifo_data[1];
-                int16_t ay = (fifo_data[2] << 8) | fifo_data[3];
-                int16_t az = (fifo_data[4] << 8) | fifo_data[5];
+                const char* m = "Exti PIN 6 zachyteny! \r\n";
+                            HAL_UART_Transmit(&huart1, (uint8_t*)m, strlen(m), 100);
+                uint16_t fifo_count = sensor.GetFifoCount();
 
-                int16_t gx = (fifo_data[6] << 8) | fifo_data[7];
-                int16_t gy = (fifo_data[8] << 8) | fifo_data[9];
-                int16_t gz = (fifo_data[10] << 8) | fifo_data[11];
 
-                int len = sprintf(buffer, "ACC: [%d, %d, %d] | GYRO: [%d, %d, %d]\r\n", ax, ay, az, gx, gy, gz);
-                HAL_UART_Transmit(&huart1, (uint8_t*)buffer, len, 10);
+                while (fifo_count >= 12) {
+                    uint8_t* fifo_data = sensor.ReadFifo(12);
+                    int16_t ax = (fifo_data[0] << 8) | fifo_data[1];
+                    int16_t ay = (fifo_data[2] << 8) | fifo_data[3];
+                    int16_t az = (fifo_data[4] << 8) | fifo_data[5];
 
-                fifo_count -= 12;
+                    int16_t gx = (fifo_data[6] << 8) | fifo_data[7];
+                    int16_t gy = (fifo_data[8] << 8) | fifo_data[9];
+                    int16_t gz = (fifo_data[10] << 8) | fifo_data[11];
+
+                    int len = sprintf(buffer, "ACC: [%d, %d, %d] | GYRO: [%d, %d, %d]\r\n", ax, ay, az, gx, gy, gz);
+                    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, len, 10);
+
+                    fifo_count -= 12;
+                }
             }
 
-            HAL_Delay(1000);
-        }
+    	/*uint8_t int_status = manager.read_single_reg(0, ub_0, B0_INT_STATUS_1);
 
+    	    int len = sprintf(buffer, "Status prerusenia senzora: 0x%02X\r\n", int_status);
+    	    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, len, 100);
+
+    	    // Vyčítame aj FIFO, aby sa statusový register mohol resetovať pre ďalšie meranie
+    	    sensor.ReadFifo(12);
+
+    	    HAL_Delay(500); // Spomalíme to, aby sa to dalo čítať
+
+*/
+        }
 }
