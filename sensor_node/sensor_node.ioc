@@ -98,6 +98,7 @@ NVIC.PendSV_IRQn=true\:0\:0\:false\:false\:true\:false\:false\:false
 NVIC.SPI1_IRQn=true\:0\:0\:false\:false\:true\:true\:true\:true
 NVIC.SVC_IRQn=true\:0\:0\:false\:false\:true\:false\:false\:true
 NVIC.SysTick_IRQn=true\:3\:0\:false\:false\:true\:false\:true\:false
+NVIC.USART1_IRQn=true\:0\:0\:false\:false\:true\:true\:true\:true
 PA0.Locked=true
 PA0.Mode=Asynchronous
 PA0.Signal=USART1_TX
