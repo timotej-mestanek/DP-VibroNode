@@ -250,6 +250,11 @@ uint8_t* Icm20948::ReadFifo(uint16_t length) {
     return _spi_manager->read_multiple_reg(_activeDevice, ub_0, B0_FIFO_R_W, length);
 }
 
+void Icm20948::ReadFifo_DMA(uint8_t* tx_buf, uint8_t* rx_buf, uint16_t length)
+{
+    _spi_manager->read_multiple_reg_DMA(_activeDevice, ub_0, B0_FIFO_R_W, tx_buf, rx_buf, length);
+}
+
 void Icm20948::Read(void)
 {
 	uint8_t* temp =_spi_manager->read_multiple_reg(_activeDevice, ub_0, B0_ACCEL_XOUT_H, 12);

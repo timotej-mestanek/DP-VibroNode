@@ -149,6 +149,8 @@ public:
 	void ResetFifo(void);
 	uint16_t GetFifoCount(void);
 	uint8_t* ReadFifo(uint16_t length);
+	void ReadFifo_DMA(uint8_t* tx_buf, uint8_t* rx_buf, uint16_t length);
+
 
 };
 
