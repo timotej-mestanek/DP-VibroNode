@@ -1,1 +1,1 @@
-"# Diploma Work" 
+"# Master's Thesis" 
