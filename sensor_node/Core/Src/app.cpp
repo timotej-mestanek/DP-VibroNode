@@ -5,6 +5,7 @@
 #include "icm20948/icm20948.h"
 #include "config.h"
 #include "debug.h"
+#include "process.h"
 
 
 constexpr uint16_t FIFO_SIZE = 24;
@@ -16,8 +17,8 @@ uint8_t spi_tx_buf[FIFO_SIZE + 1]; /* CUZ OF address + 1byte */
 uint8_t spi_rx_buf[FIFO_SIZE + 1];
 
 
-static volatile uint8_t sensor_data     = 0;
-static volatile uint8_t spi_busy        = 0;
+static volatile uint8_t sensor_data = 0;
+static volatile uint8_t spi_busy = 0;
 static volatile uint8_t spi_rx_complete = 0;
 static uint32_t overflow_cnt = 0;
 
@@ -36,6 +37,21 @@ extern "C" void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi) {
 
         spi_rx_complete = 1;
     }
+}
+
+static inline int16_t be16(const uint8_t *p) {
+    return (int16_t)((p[0] << 8) | p[1]);
+}
+
+static Sample parse_sample(const uint8_t *p) {
+    Sample s;
+    s.ax = be16(p + 0);
+    s.ay = be16(p + 2);
+    s.az = be16(p + 4);
+    s.gx = be16(p + 6);
+    s.gy = be16(p + 8);
+    s.gz = be16(p + 10);
+    return s;
 }
 
 
@@ -73,42 +89,42 @@ extern "C" void cpp_main(void) {
          debug_log("Sensor ready, FIFO...\r\n");
      } else {
         debug_log("Sensor not found");
-         HAL_UART_Transmit(&huart1, (uint8_t*)err, strlen(err), 100);
          while(1);
      }
 
+    uint8_t last_read_bytes = 0;
 
     while(1){
-            if (sensor_data == 1) {
+            if (sensor_data && !spi_busy) {
                 sensor_data = 0;
 
                 uint16_t fifo_count = sensor.GetFifoCount();
 
-                if (fifo_count >= FIFO_SIZE) { /* each axis 16 bites => 2bytes * 6 axis = 12bytes (1 packet) */
-                    sensor.ReadFifo_DMA(spi_tx_buf, spi_rx_buf, FIFO_SIZE);
+                if (fifo_count >= FIFO_OVERFLOW) {
+                	sensor.ResetFifo();
+                	overflow_cnt++;
+                	debug_log("FIFO overflow, reset\r\n");
+                } else {
+                	uint16_t packets = fifo_count / PACKET_SIZE;
+                	if (packets > MAX_PACKETS) packets = MAX_PACKETS;
+                	if (packets > 0) {
+                		last_read_bytes = packets * PACKET_SIZE;
+                		spi_busy = 1;
+                		sensor.ReadFifo_DMA(spi_tx_buf, spi_rx_buf, last_read_bytes);
+                        }
+                  }
 
-                    fifo_count -= FIFO_SIZE;
-                }
             }
-            if (spi_rx_complete == 1) {
+            if (spi_rx_complete) {
                 spi_rx_complete = 0;
+                spi_busy = 0;
 
-                int16_t ax = (spi_rx_buf[1] << 8) | spi_rx_buf[2];
-                int16_t ay = (spi_rx_buf[3] << 8) | spi_rx_buf[4];
-                int16_t az = (spi_rx_buf[5] << 8) | spi_rx_buf[6];
-
-                int16_t gx = (spi_rx_buf[7] << 8) | spi_rx_buf[8];
-                int16_t gy = (spi_rx_buf[9] << 8) | spi_rx_buf[10];
-                int16_t gz = (spi_rx_buf[11] << 8) | spi_rx_buf[12];
-
-
-                if (!uart_tx_busy) {
-                                int len = sprintf(uart_tx_buf, "ACC: [%d, %d, %d] | GYRO: [%d, %d, %d]\r\n", ax, ay, az, gx, gy, gz);
-                                uart_tx_busy = 1;
-                                HAL_UART_Transmit_DMA(&huart1, (uint8_t*)uart_tx_buf, len);
-
-                            }
-
+                const uint8_t *p = &spi_rx_buf[1];
+                for (uint16_t i = 0; i < last_read_bytes; i += PACKET_SIZE) {
+                                process_sample(parse_sample(p + i));
+                                debug_print_sample(process_last(), process_count());
+                }
+                sensor_data = 1;
             }
         }
 }
