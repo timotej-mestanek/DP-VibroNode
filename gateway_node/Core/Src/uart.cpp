@@ -12,6 +12,7 @@
 #include <cstdio>
 
 extern UART_HandleTypeDef huart1;
+static volatile uint8_t uart_tx_busy = 0;
 
 
 extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
