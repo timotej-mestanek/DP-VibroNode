@@ -67,7 +67,7 @@ extern "C" void cpp_main(void) {
                 fifo_count -= 12;
             }
 
-            HAL_Delay(50);
+            HAL_Delay(1000);
         }
 
 }
