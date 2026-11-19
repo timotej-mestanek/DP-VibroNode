@@ -87,6 +87,21 @@ uint8_t* IcmSpiManager::read_multiple_reg(uint8_t sensorNum, userbank ub, uint8_
 }
 
 
+void IcmSpiManager::read_multiple_reg_DMA(uint8_t sensorNum, userbank ub, uint8_t reg, uint8_t* tx_buf, uint8_t* rx_buf, uint16_t len)
+{
+	/*
+	 *
+	 * DON'T FORGET TO PULL UP CS PIN ON DMA CALLBACK (INTERUPT)
+	 *
+	 */
+    tx_buf[0] = READ | reg;
+    this->select_user_bank(sensorNum, ub);
+    cs_low(sensorNum);
+    HAL_SPI_TransmitReceive_DMA(this->_spi, tx_buf, rx_buf, len + 1);
+
+
+}
+
 uint8_t IcmSpiManager::read_single_reg(uint8_t sensorNum, userbank ub, uint8_t reg)
 {
 	uint8_t read_reg = READ | reg;

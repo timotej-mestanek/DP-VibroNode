@@ -217,6 +217,7 @@ public:
     uint8_t addSlave(McuPin_typeDef *pin);
 
     uint8_t* read_multiple_reg(uint8_t index, userbank ub, uint8_t reg, uint8_t len);
+    void read_multiple_reg_DMA(uint8_t sensorNum, userbank ub, uint8_t reg, uint8_t* tx_buf, uint8_t* rx_buf, uint16_t len);
     uint8_t read_single_reg(uint8_t sensorNum, userbank ub, uint8_t reg);
     void write_single_reg(uint8_t sensorNum, userbank ub, uint8_t reg, uint8_t val);
     void write_multiple_reg(uint8_t sensorNum, userbank ub, uint8_t reg, uint8_t* val, uint8_t len);

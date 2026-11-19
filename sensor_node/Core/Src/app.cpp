@@ -8,7 +8,14 @@
 extern UART_HandleTypeDef huart1;
 extern SPI_HandleTypeDef hspi1;
 
+uint8_t spi_tx_buf[13];
+uint8_t spi_rx_buf[13];
+char uart_tx_buf[128];
+
+volatile uint8_t uart_tx_busy = 0;
 volatile uint8_t sensor_data = 0;
+volatile uint8_t spi_rx_complete = 0;
+
 
 extern "C" void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == GPIO_PIN_6) {
@@ -16,6 +23,23 @@ extern "C" void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
 
     }
 }
+
+extern "C" void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi) {
+    if (hspi->Instance == SPI1) {
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+
+        spi_rx_complete = 1;
+    }
+}
+
+extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART1) {
+        uart_tx_busy = 0;
+    }
+}
+
+
+
 
 extern "C" void cpp_main(void) {
 
@@ -36,8 +60,6 @@ extern "C" void cpp_main(void) {
     config1.mag.mode = mag_mode_cont_measurement_100hz;
 
     Icm20948 sensor(&manager, &config1);
-
-    char buffer[128];
 
     if (sensor.IsPresent()) {
          sensor.Wakeup();
@@ -63,39 +85,30 @@ extern "C" void cpp_main(void) {
             if (sensor_data == 1) {
                 sensor_data = 0;
 
-
-                const char* m = "Exti PIN 6 zachyteny! \r\n";
-                            HAL_UART_Transmit(&huart1, (uint8_t*)m, strlen(m), 100);
                 uint16_t fifo_count = sensor.GetFifoCount();
 
-
-                while (fifo_count >= 12) {
-                    uint8_t* fifo_data = sensor.ReadFifo(12);
-                    int16_t ax = (fifo_data[0] << 8) | fifo_data[1];
-                    int16_t ay = (fifo_data[2] << 8) | fifo_data[3];
-                    int16_t az = (fifo_data[4] << 8) | fifo_data[5];
-
-                    int16_t gx = (fifo_data[6] << 8) | fifo_data[7];
-                    int16_t gy = (fifo_data[8] << 8) | fifo_data[9];
-                    int16_t gz = (fifo_data[10] << 8) | fifo_data[11];
-
-                    int len = sprintf(buffer, "ACC: [%d, %d, %d] | GYRO: [%d, %d, %d]\r\n", ax, ay, az, gx, gy, gz);
-                    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, len, 10);
+                if (fifo_count >= 12) {
+                    sensor.ReadFifo_DMA(spi_tx_buf, spi_rx_buf, 12);
 
                     fifo_count -= 12;
                 }
             }
+            if (spi_rx_complete == 1) {
+                spi_rx_complete = 0;
 
-    	/*uint8_t int_status = manager.read_single_reg(0, ub_0, B0_INT_STATUS_1);
+                int16_t ax = (spi_rx_buf[1] << 8) | spi_rx_buf[2];
+                int16_t ay = (spi_rx_buf[3] << 8) | spi_rx_buf[4];
+                int16_t az = (spi_rx_buf[5] << 8) | spi_rx_buf[6];
 
-    	    int len = sprintf(buffer, "Status prerusenia senzora: 0x%02X\r\n", int_status);
-    	    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, len, 100);
+                int16_t gx = (spi_rx_buf[7] << 8) | spi_rx_buf[8];
+                int16_t gy = (spi_rx_buf[9] << 8) | spi_rx_buf[10];
+                int16_t gz = (spi_rx_buf[11] << 8) | spi_rx_buf[12];
 
-    	    // Vyčítame aj FIFO, aby sa statusový register mohol resetovať pre ďalšie meranie
-    	    sensor.ReadFifo(12);
 
-    	    HAL_Delay(500); // Spomalíme to, aby sa to dalo čítať
+                    int len = sprintf(uart_tx_buf, "ACC: [%d, %d, %d] | GYRO: [%d, %d, %d]\r\n", ax, ay, az, gx, gy, gz);
 
-*/
+                    HAL_UART_Transmit(&huart1, (uint8_t*)uart_tx_buf, len, 100);
+
+            }
         }
 }
