@@ -70,6 +70,7 @@ void cpp_main(void);
 #define ICM20948_CS_GPIO_Port GPIOA
 #define ICM20948_INT_Pin GPIO_PIN_6
 #define ICM20948_INT_GPIO_Port GPIOB
+#define ICM20948_INT_EXTI_IRQn EXTI4_15_IRQn
 
 /* USER CODE BEGIN Private defines */
 
