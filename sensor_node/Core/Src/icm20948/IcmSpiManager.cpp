@@ -87,7 +87,6 @@ uint8_t* IcmSpiManager::read_multiple_reg(uint8_t sensorNum, userbank ub, uint8_
 }
 
 
-
 uint8_t IcmSpiManager::read_single_reg(uint8_t sensorNum, userbank ub, uint8_t reg)
 {
 	uint8_t read_reg = READ | reg;
