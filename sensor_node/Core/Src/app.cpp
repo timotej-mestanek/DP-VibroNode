@@ -18,6 +18,8 @@ char uart_tx_buf[128];
 volatile uint8_t uart_tx_busy = 0;
 volatile uint8_t sensor_data = 0;
 volatile uint8_t spi_rx_complete = 0;
+static volatile uint8_t spi_busy = 0;
+static uint32_t overflow_cnt = 0;
 
 
 extern "C" void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
