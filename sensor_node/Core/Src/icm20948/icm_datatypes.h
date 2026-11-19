@@ -9,6 +9,7 @@
 #define ICM_DATATYPES_H_
 
 
+#include "stm32c0xx_hal.h"
 
 #if defined(STM32F401xC) || defined(STM32F401xE)
 #include "stm32f4xx_hal.h"
