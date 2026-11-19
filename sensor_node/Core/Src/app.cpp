@@ -105,9 +105,11 @@ extern "C" void cpp_main(void) {
                 int16_t gz = (spi_rx_buf[11] << 8) | spi_rx_buf[12];
 
 
-                    int len = sprintf(uart_tx_buf, "ACC: [%d, %d, %d] | GYRO: [%d, %d, %d]\r\n", ax, ay, az, gx, gy, gz);
-
-                    HAL_UART_Transmit(&huart1, (uint8_t*)uart_tx_buf, len, 100);
+                if (!uart_tx_busy) {
+                                int len = sprintf(uart_tx_buf, "ACC: [%d, %d, %d] | GYRO: [%d, %d, %d]\r\n", ax, ay, az, gx, gy, gz);
+                                uart_tx_busy = 1;
+                                HAL_UART_Transmit_DMA(&huart1, (uint8_t*)uart_tx_buf, len);
+                            }
 
             }
         }
