@@ -3,13 +3,16 @@
 #include <cstring>
 #include <cstdio>
 #include "icm20948/icm20948.h"
+#include "config.h"
 
+
+constexpr uint16_t FIFO_SIZE = 24;
 
 extern UART_HandleTypeDef huart1;
 extern SPI_HandleTypeDef hspi1;
 
-uint8_t spi_tx_buf[13];
-uint8_t spi_rx_buf[13];
+uint8_t spi_tx_buf[FIFO_SIZE + 1]; /* CUZ OF address + 1byte */
+uint8_t spi_rx_buf[FIFO_SIZE + 1];
 char uart_tx_buf[128];
 
 volatile uint8_t uart_tx_busy = 0;
@@ -87,10 +90,10 @@ extern "C" void cpp_main(void) {
 
                 uint16_t fifo_count = sensor.GetFifoCount();
 
-                if (fifo_count >= 12) {
-                    sensor.ReadFifo_DMA(spi_tx_buf, spi_rx_buf, 12);
+                if (fifo_count >= FIFO_SIZE) { /* each axis 16 bites => 2bytes * 6 axis = 12bytes (1 packet) */
+                    sensor.ReadFifo_DMA(spi_tx_buf, spi_rx_buf, FIFO_SIZE);
 
-                    fifo_count -= 12;
+                    fifo_count -= FIFO_SIZE;
                 }
             }
             if (spi_rx_complete == 1) {
