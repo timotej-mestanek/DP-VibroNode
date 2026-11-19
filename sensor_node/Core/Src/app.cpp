@@ -4,6 +4,7 @@
 #include <cstdio>
 #include "icm20948/icm20948.h"
 #include "config.h"
+#include "debug.h"
 
 
 constexpr uint16_t FIFO_SIZE = 24;
@@ -13,13 +14,13 @@ extern SPI_HandleTypeDef hspi1;
 
 uint8_t spi_tx_buf[FIFO_SIZE + 1]; /* CUZ OF address + 1byte */
 uint8_t spi_rx_buf[FIFO_SIZE + 1];
-char uart_tx_buf[128];
 
-volatile uint8_t uart_tx_busy = 0;
-volatile uint8_t sensor_data = 0;
-volatile uint8_t spi_rx_complete = 0;
-static volatile uint8_t spi_busy = 0;
+
+static volatile uint8_t sensor_data     = 0;
+static volatile uint8_t spi_busy        = 0;
+static volatile uint8_t spi_rx_complete = 0;
 static uint32_t overflow_cnt = 0;
+
 
 
 extern "C" void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
@@ -36,14 +37,6 @@ extern "C" void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi) {
         spi_rx_complete = 1;
     }
 }
-
-extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART1) {
-        uart_tx_busy = 0;
-    }
-}
-
-
 
 
 extern "C" void cpp_main(void) {
@@ -77,10 +70,9 @@ extern "C" void cpp_main(void) {
          manager.write_single_reg(0, ub_0, B0_INT_PIN_CFG, int_cfg);
          manager.write_single_reg(0, ub_0, B0_INT_ENABLE_1, 0x01);
 
-         const char ok_msg[] = "Senzor rdy, FIFO sbe...\r\n";
-                  HAL_UART_Transmit(&huart1, (uint8_t*)ok_msg, strlen(ok_msg), 100);
+         debug_log("Sensor ready, FIFO...\r\n");
      } else {
-         const char err[] = "Senzor NF \r\n";
+        debug_log("Sensor not found");
          HAL_UART_Transmit(&huart1, (uint8_t*)err, strlen(err), 100);
          while(1);
      }
@@ -114,6 +106,7 @@ extern "C" void cpp_main(void) {
                                 int len = sprintf(uart_tx_buf, "ACC: [%d, %d, %d] | GYRO: [%d, %d, %d]\r\n", ax, ay, az, gx, gy, gz);
                                 uart_tx_busy = 1;
                                 HAL_UART_Transmit_DMA(&huart1, (uint8_t*)uart_tx_buf, len);
+
                             }
 
             }
